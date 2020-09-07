@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="16119" systemVersion="19G2021" minimumToolsVersion="Automatic" sourceLanguage="Swift" userDefinedModelVersionIdentifier="">
+    <entity name="CDAlbum" representedClassName="CDAlbum" syncable="YES" codeGenerationType="class">
+        <attribute name="imageData" optional="YES" attributeType="Binary"/>
+        <attribute name="imageURL" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="uri" optional="YES" attributeType="String"/>
+        <relationship name="tracks" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="CDTrack" inverseName="album" inverseEntity="CDTrack"/>
+    </entity>
+    <entity name="CDPlaylist" representedClassName="CDPlaylist" syncable="YES" codeGenerationType="class">
+        <attribute name="imageData" optional="YES" attributeType="Binary"/>
+        <attribute name="imageURL" optional="YES" attributeType="String"/>
+        <attribute name="index" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lastCheckedSnapshotId" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <attribute name="snapshotId" optional="YES" attributeType="String"/>
+        <attribute name="uri" optional="YES" attributeType="String"/>
+        <relationship name="tracks" optional="YES" toMany="YES" deletionRule="Nullify" destinationEntity="CDTrack" inverseName="playlist" inverseEntity="CDTrack"/>
+    </entity>
+    <entity name="CDTrack" representedClassName="CDTrack" syncable="YES" codeGenerationType="class">
+        <attribute name="artistName" optional="YES" attributeType="String"/>
+        <attribute name="name" optional="YES" attributeType="String"/>
+        <relationship name="album" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CDAlbum" inverseName="tracks" inverseEntity="CDAlbum"/>
+        <relationship name="playlist" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="CDPlaylist" inverseName="tracks" inverseEntity="CDPlaylist"/>
+    </entity>
+    <elements>
+        <element name="CDAlbum" positionX="150.98828125" positionY="-7.69140625" width="128" height="118"/>
+        <element name="CDPlaylist" positionX="55.12890625" positionY="134.2734375" width="128" height="163"/>
+        <element name="CDTrack" positionX="-58.203125" positionY="-6.89453125" width="128" height="103"/>
+    </elements>
+</model>

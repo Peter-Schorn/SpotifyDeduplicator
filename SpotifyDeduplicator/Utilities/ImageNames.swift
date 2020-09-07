@@ -1,9 +1,27 @@
-//
-//  ImageNames.swift
-//  SpotifyDeduplicator
-//
-//  Created by Peter Schorn on 9/6/20.
-//  Copyright © 2020 Peter Schorn. All rights reserved.
-//
-
 import Foundation
+import SwiftUI
+
+enum ImageName: String {
+    
+    case spotifyLogoGreen = "spotify logo green"
+    case spotifyLogoWhite = "spotify logo white"
+    case spotifyLogoBlack = "spotify logo black"
+    case spotifyAlbumPlaceholder = "spotify album placeholder"
+    case jinxAlbum = "jinx album"
+}
+
+extension Image {
+    
+    init(_ name: ImageName) {
+        self.init(name.rawValue)
+    }
+    
+}
+
+extension UIImage {
+    
+    convenience init?(_ name: ImageName) {
+        self.init(named: name.rawValue)
+    }
+    
+}

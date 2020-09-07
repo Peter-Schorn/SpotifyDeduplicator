@@ -63,9 +63,7 @@ struct PlaylistsListView: View {
                 self.spotify.api.currentUserPlaylists()
             }
             .extendPages(spotify.api)
-            // .tryMap { _ in
-            //     throw SpotifyLocalError.other("intentional error")
-            // }
+            // .tryMap { _ / }
             .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { completion in
@@ -209,3 +207,4 @@ struct PlaylistsView_Previews: PreviewProvider {
 }
 
 
+// test
