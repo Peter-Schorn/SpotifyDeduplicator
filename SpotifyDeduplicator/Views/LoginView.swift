@@ -40,7 +40,6 @@ struct LoginView: ViewModifier {
                             loginView
                         }
                     }
-                    
                 }
             )
             .onAppear {

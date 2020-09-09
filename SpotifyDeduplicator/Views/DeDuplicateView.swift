@@ -15,12 +15,12 @@ struct DeDuplicateView: View {
             .init(keyPath: \CDPlaylist.index, ascending: true)
         ]
     ) var savedPlaylists: FetchedResults<CDPlaylist>
+
+    @State private var totalPlaylistsWithDuplicates = 0
     
     @State private var deDuplicateCancellables: Set<AnyCancellable> = []
     @State private var deDuplicatingPlaylistsCount = 0
 
-    @State private var noDuplicatesAlertIsPresented = false
-    
     @Binding var processingPlaylistsCount: Int?
     
     var body: some View {
@@ -49,7 +49,7 @@ struct DeDuplicateView: View {
         
         if let count = processingPlaylistsCount, count > 0 {
             return Text(
-                "Processing \(count)/\(savedPlaylists.count) playlists"
+                "Processing \(count)/\(savedPlaylists.count) Playlists"
             )
             .deDuplicateTextStyle()
             .eraseToAnyView()
@@ -58,7 +58,7 @@ struct DeDuplicateView: View {
         else if deDuplicatingPlaylistsCount > 0 {
             let count = deDuplicatingPlaylistsCount
             return Text(
-                "De-Depulicating \(count)/\(savedPlaylists.count) playlists"
+                "De-Depulicating \(count)/\(totalPlaylistsWithDuplicates) Playlists"
             )
             .deDuplicateTextStyle()
             .eraseToAnyView()
@@ -92,20 +92,25 @@ struct DeDuplicateView: View {
                 "No Duplicates in any Playlists"
             )
             spotify.alertTitle =
-                    "Congrats! You Have no Duplicates in any of Your Playlists"
+                    "You Have no Duplicates in any of Your Playlists"
             spotify.alertMessage = ""
             spotify.alertIsPresented = true
             return
         }
         
-        var playlistsWithDuplicatesCount = 0
-        var totalDuplicateTracks = 0
+        totalPlaylistsWithDuplicates = 0
+        for playlist in savedPlaylists {
+            if !playlist.duplicatePlaylistItems.isEmpty {
+                totalPlaylistsWithDuplicates += 1
+            }
+        }
+        
+        var totalDuplicateItems = 0
         
         for playlist in savedPlaylists {
             playlist.deDuplicate(spotify)
             if playlist.isDeduplicating {
-                playlistsWithDuplicatesCount += 1
-                totalDuplicateTracks += playlist.duplicatesCount
+                totalDuplicateItems += playlist.duplicatesCount
                 deDuplicatingPlaylistsCount += 1
                 Loggers.deDuplicateView.trace(
                     "DeDuplicating \(playlist.name ?? "nil"); " +
@@ -121,11 +126,12 @@ struct DeDuplicateView: View {
                     "count: \(self.deDuplicatingPlaylistsCount as Any)"
                 )
                 if self.deDuplicatingPlaylistsCount <= 0 {
-                    self.spotify.alertTitle =
-                            "Congrats! You Have no Duplicates in any of Your Playlists"
+                    self.spotify.alertTitle = """
+                        Congrats! All Duplicates Have Been Removed from Your Playlists
+                        """
                     self.spotify.alertMessage = """
-                        Removed \(totalDuplicateTracks) Items from \
-                        \(playlistsWithDuplicatesCount) Playlists.
+                        Removed \(totalDuplicateItems) Items from \
+                        \(self.totalPlaylistsWithDuplicates) Playlists.
                         """
                     self.spotify.alertIsPresented = true
                 }

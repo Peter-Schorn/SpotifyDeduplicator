@@ -5,10 +5,9 @@ import SpotifyWebAPI
 
 struct PlaylistsListView: View {
     
-    @EnvironmentObject var spotify: Spotify
-
     @Environment(\.managedObjectContext) var managedObjectContext
-    @Environment(\.colorScheme) var colorScheme
+
+    @EnvironmentObject var spotify: Spotify
     
     @FetchRequest(
         entity: CDPlaylist.entity(),
@@ -23,10 +22,6 @@ struct PlaylistsListView: View {
     
     @State private var isLoadingPlaylists = false
     @State private var couldntLoadPlaylists = false
-    @State private var couldntLoadPlaylistsErrorMessage = ""
-    @State private var couldntLoadPlaylistsAlertIsPresented = false
-    
-    @State private var alert: Alert? = nil
     
     // MARK: Cancellables
     @State private var didAuthorizeCancellable: AnyCancellable? = nil
@@ -38,25 +33,28 @@ struct PlaylistsListView: View {
     var body: some View {
         ZStack {
             if savedPlaylists.isEmpty {
-                if isLoadingPlaylists {
-                    HStack {
-                        ActivityIndicator(
-                            isAnimating: .constant(true),
-                            style: .large
-                        )
-                        .scaleEffect(0.8)
-                        Text("Retrieving Playlists")
+                Group {
+                    if isLoadingPlaylists {
+                        HStack {
+                            ActivityIndicator(
+                                isAnimating: .constant(true),
+                                style: .large
+                            )
+                            .scaleEffect(0.8)
+                            Text("Retrieving Playlists")
+                                .lightSecondaryTitle()
+                        }
+                    }
+                    else if couldntLoadPlaylists {
+                        Text("Couldn't Load Playlists")
+                            .lightSecondaryTitle()
+                    }
+                    else if self.spotify.isAuthorized {
+                        Text("No Playlists Found")
                             .lightSecondaryTitle()
                     }
                 }
-                else if couldntLoadPlaylists {
-                    Text("Couldn't Load Playlists")
-                        .lightSecondaryTitle()
-                }
-                else if self.spotify.isAuthorized {
-                    Text("No Playlists Found")
-                        .lightSecondaryTitle()
-                }
+                .zIndex(0)
             }
             else {
                 List {
@@ -67,16 +65,16 @@ struct PlaylistsListView: View {
                         .fill(Color.clear)
                         .frame(height: 50)
                 }
-                .onAppear {
-                    UITableView.appearance().separatorStyle = .none
-                }
+                .zIndex(1)
                 VStack {
                     Spacer()
                     DeDuplicateView(
                         processingPlaylistsCount: $processingPlaylistsCount
                     )
-                    .padding(.bottom, 15)
+                        .padding(.bottom, 15)
                 }
+                .zIndex(2)
+                
             }
         }
         .alert(isPresented: $spotify.alertIsPresented) {
@@ -85,7 +83,10 @@ struct PlaylistsListView: View {
                 message: Text(spotify.alertMessage)
             )
         }
-        .onAppear(perform: setupSubscriptions)
+        .onAppear {
+            UITableView.appearance().separatorStyle = .none
+            self.setupSubscriptions()
+        }
     }
     
     func retrievePlaylistsFromSpotify() {
@@ -157,6 +158,8 @@ struct PlaylistsListView: View {
         )
         
         for (index, playlist) in playlists.items.enumerated() {
+            
+            guard spotify.isAuthorized else { return }
             
             // skip playlists that aren't owned by the user
             // because they can't be modified.
