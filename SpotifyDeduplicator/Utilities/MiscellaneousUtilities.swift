@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 public extension MutableCollection {
     
@@ -29,6 +30,43 @@ public extension MutableCollection {
             try modifyElement(indx, &self[indx])
         }
 
+    }
+
+}
+
+public extension RangeReplaceableCollection where Element == AnyCancellable {
+    
+    mutating func cancellAll() {
+        for cancellable in self {
+            cancellable.cancel()
+        }
+        self.removeAll()
+        
+    }
+
+    
+}
+
+public extension Set where Element == AnyCancellable {
+    
+    mutating func cancellAll() {
+        for cancellable in self {
+            cancellable.cancel()
+        }
+        self.removeAll()
+        
+    }
+
+}
+
+public extension Collection where Index == Int {
+
+    /// Splits the collection into an array of arrays,
+    /// each of which will have the specified size.
+    func chunked(size: Int) -> [[Element]] {
+        return stride(from: 0, to: self.count, by: size).map {
+            Array(self[$0 ..< Swift.min($0 + size, self.count)])
+        }
     }
 
 }

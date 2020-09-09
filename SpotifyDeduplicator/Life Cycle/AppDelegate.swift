@@ -56,7 +56,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         */
         let container = NSPersistentContainer(name: "SpotifyDeduplicator")
         container.loadPersistentStores(
-            completionHandler: { (storeDescription, error) in
+            completionHandler: { storeDescription, error in
             
                 if let error = error as NSError? {
                     // Replace this implementation with code to handle the error
@@ -78,7 +78,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
                      */
                     fatalError("Unresolved error \(error), \(error.userInfo)")
                 }
-        })
+            }
+        )
         return container
     }()
 
@@ -89,6 +90,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         if context.hasChanges {
             do {
                 try context.save()
+                
             } catch {
                 // Replace this implementation with code to handle the
                 // error appropriately.

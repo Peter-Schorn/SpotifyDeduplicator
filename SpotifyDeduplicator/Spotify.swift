@@ -3,7 +3,7 @@ import Combine
 import SwiftUI
 import Logger
 import KeychainAccess
-import SpotifyWebAPI
+@testable import SpotifyWebAPI
 
 final class Spotify: ObservableObject {
     
@@ -31,6 +31,9 @@ final class Spotify: ObservableObject {
     
     @Published var isAuthorized = false
     @Published var isRetrievingTokens = false
+    @Published var alertTitle = ""
+    @Published var alertMessage = ""
+    @Published var alertIsPresented = false
 
     // MARK: - Subjects -
     
@@ -53,6 +56,7 @@ final class Spotify: ObservableObject {
                 clientSecret: Spotify.clientSecret
             )
         )
+        // api.apiRequestLogger.level = .trace
         Loggers.spotifyObservable.trace("created SpotifyAPI")
         SpotifyDecodingError.dataDumpfolder = URL(
             fileURLWithPath: "/Users/pschorn/Desktop/"

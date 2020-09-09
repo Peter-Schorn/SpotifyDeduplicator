@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import CoreData
 import SpotifyWebAPI
 
 struct PlaylistsListView: View {
@@ -7,6 +8,7 @@ struct PlaylistsListView: View {
     @EnvironmentObject var spotify: Spotify
 
     @Environment(\.managedObjectContext) var managedObjectContext
+    @Environment(\.colorScheme) var colorScheme
     
     @FetchRequest(
         entity: CDPlaylist.entity(),
@@ -15,79 +17,144 @@ struct PlaylistsListView: View {
         ]
     ) var savedPlaylists: FetchedResults<CDPlaylist>
 
-    @State private var cancellables: Set<AnyCancellable> = []
+    @State private var didRequestPlaylists = false
+
+    @State private var processingPlaylistsCount: Int? = nil
     
+    @State private var isLoadingPlaylists = false
     @State private var couldntLoadPlaylists = false
-    @State private var loadingPlaylists = false
+    @State private var couldntLoadPlaylistsErrorMessage = ""
+    @State private var couldntLoadPlaylistsAlertIsPresented = false
+    
+    @State private var alert: Alert? = nil
+    
+    // MARK: Cancellables
+    @State private var didAuthorizeCancellable: AnyCancellable? = nil
+    @State private var didRefreshCancellable: AnyCancellable? = nil
+    @State private var retrievePlaylistsCancellable: AnyCancellable? = nil
+    @State private var checkForDuplicatesCancellables:
+            Set<AnyCancellable> = []
     
     var body: some View {
         ZStack {
             if savedPlaylists.isEmpty {
-                if loadingPlaylists {
-                    ActivityIndicator(
-                        isAnimating: .constant(true),
-                        style: .large
-                    )
+                if isLoadingPlaylists {
+                    HStack {
+                        ActivityIndicator(
+                            isAnimating: .constant(true),
+                            style: .large
+                        )
+                        .scaleEffect(0.8)
+                        Text("Retrieving Playlists")
+                            .lightSecondaryTitle()
+                    }
                 }
                 else if couldntLoadPlaylists {
                     Text("Couldn't Load Playlists")
-                        .font(.title)
-                        .fontWeight(.light)
-                        .foregroundColor(.secondary)
+                        .lightSecondaryTitle()
                 }
-                else {
+                else if self.spotify.isAuthorized {
                     Text("No Playlists Found")
-                        .font(.title)
-                        .fontWeight(.light)
-                        .foregroundColor(.secondary)
+                        .lightSecondaryTitle()
                 }
             }
             else {
-                List(savedPlaylists, id: \.self) { playlist in
-                    PlaylistView(playlist: playlist)
+                List {
+                    ForEach(savedPlaylists, id: \.self) { playlist in
+                        PlaylistView(playlist: playlist)
+                    }
+                    Rectangle()
+                        .fill(Color.clear)
+                        .frame(height: 50)
                 }
-                .padding(.bottom, 40)
+                .onAppear {
+                    UITableView.appearance().separatorStyle = .none
+                }
                 VStack {
                     Spacer()
-                    DeDuplicateView()
+                    DeDuplicateView(
+                        processingPlaylistsCount: $processingPlaylistsCount
+                    )
+                    .padding(.bottom, 15)
                 }
             }
+        }
+        .alert(isPresented: $spotify.alertIsPresented) {
+            Alert(
+                title: Text(spotify.alertTitle),
+                message: Text(spotify.alertMessage)
+            )
         }
         .onAppear(perform: setupSubscriptions)
     }
     
     func retrievePlaylistsFromSpotify() {
-
-        spotify.getCurrentUserId()
+        
+        Loggers.playlistsListView.notice(
+            "isAuthorized: \(spotify.isAuthorized)"
+        )
+        if !spotify.isAuthorized {
+            Loggers.playlistsListView.error(
+                "tried to retrieve playlists without authorization"
+            )
+            return
+        }
+        
+        self.checkForDuplicatesCancellables.cancellAll()
+        
+        self.processingPlaylistsCount = nil
+        for playlist in savedPlaylists {
+            playlist.isCheckingForDuplicates = false
+        }
+        
+        var allUserPlaylistURIs: Set<String> = []
+        
+        self.isLoadingPlaylists = true
+        self.retrievePlaylistsCancellable = spotify.getCurrentUserId()
             .flatMap { _ in
-                self.spotify.api.currentUserPlaylists()
+                self.spotify.api.currentUserPlaylists()  // limit: 15)
             }
             .extendPages(spotify.api)
-            // .tryMap { _ / }
             .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { completion in
-                    self.loadingPlaylists = false
+                    self.isLoadingPlaylists = false
                     switch completion {
                         case .finished:
+                            Loggers.playlistsListView.trace(
+                                "currentUserPlaylists finished successfully"
+                            )
                             self.couldntLoadPlaylists = false
                         case .failure(let error):
                             Loggers.playlistsListView.error(
                                 "couldn't load playlists:\n\(error)"
                             )
                             self.couldntLoadPlaylists = true
-                        
+                            self.spotify.alertTitle = "Couldn't Load Playlists"
+                            self.spotify.alertMessage = error
+                                    .localizedDescription
+                            self.spotify.alertIsPresented = true
                     }
+                    self.removeUnfollowedPlaylists(allUserPlaylistURIs)
+                    
                 },
-                receiveValue: receivePlaylists(_:)
+                receiveValue: { playlists in
+                    for uri in playlists.items.map(\.uri) {
+                        allUserPlaylistURIs.insert(uri)
+                    }
+                    self.receivePlaylists(playlists)
+                }
             )
-            .store(in: &cancellables)
               
     }
     
     func receivePlaylists(
         _ playlists: PagingObject<Playlist<PlaylistsItemsReference>>
     ) {
+        
+        Loggers.playlistsListView.trace(
+            "received \(playlists.items.count) playlists"
+        )
         
         for (index, playlist) in playlists.items.enumerated() {
             
@@ -124,14 +191,12 @@ struct PlaylistsListView: View {
             // update the playlist information in the persistent store
             if let cdPlaylistName = cdPlaylist.name {
                 if playlist.name != cdPlaylist.name {
-                    print("\(playlist.name) != \(cdPlaylistName)")
+                    Loggers.playlistsListView.notice(
+                        "\(playlist.name) != \(cdPlaylistName)"
+                    )
                 }
             }
             cdPlaylist.setFromPlaylist(playlist)
-            print(
-                "name after cdPlaylist.setFromPlaylist: " +
-                "\(cdPlaylist.name ?? "nil")"
-            )
             
             /*
              The index of the playlist as returned from the
@@ -142,17 +207,65 @@ struct PlaylistsListView: View {
              order that the API returns them in.
              */
             cdPlaylist.index = Int64(index + playlists.offset)
-        }
-        
-        do {
-            try self.managedObjectContext.save()
+            cdPlaylist.objectWillChange.send()
             
-        } catch {
-            Loggers.playlistsListView.error(
-                "couldn't save context:\n\(error)"
+            Loggers.playlistsListView.trace(
+                "checking for duplicates for \(cdPlaylist.name ?? "nil")"
             )
+            if let cancellable = cdPlaylist.checkForDuplicates(spotify) {
+                self.checkForDuplicatesCancellables.insert(cancellable)
+            }
+            self.processingPlaylistsCount =
+                (self.processingPlaylistsCount ?? 0) + 1
+            
+            cdPlaylist.finishedCheckingForDuplicates
+                .receive(on: RunLoop.main)
+                .sink {
+                    if let count = self.processingPlaylistsCount {  // , count > 0 {
+                        self.processingPlaylistsCount = count - 1
+                    }
+                    let stringCount = self.processingPlaylistsCount
+                        .map(String.init) ?? "nil"
+                    Loggers.playlistsListView.trace(
+                        """
+                        finishedCheckingForDuplicates for \
+                        \(cdPlaylist.name ?? "nil"); count: \(stringCount)
+                        """
+                    )
+                    
+                }
+                .store(in: &checkForDuplicatesCancellables)
+            
+            
+        }  // end for playlist in playlists
+        
+        if managedObjectContext.hasChanges {
+            do {
+                try self.managedObjectContext.save()
+                
+            } catch {
+                Loggers.playlistsListView.error(
+                    "couldn't save context:\n\(error)"
+                )
+            }
         }
         
+    }
+    
+    /// Removes playlists from CoreData that the user unfollowed from Spotify.
+    func removeUnfollowedPlaylists(_ allUserPlaylistURIs: Set<String>) {
+        for savedPlaylist in self.savedPlaylists {
+            guard let savedPlaylistURI = savedPlaylist.uri else {
+                continue
+            }
+            if !allUserPlaylistURIs.contains(savedPlaylistURI) {
+                self.managedObjectContext.delete(savedPlaylist)
+                Loggers.playlistsListView.trace(
+                    "removed playlist from core data: " +
+                    (savedPlaylist.name ?? "nil")
+                )
+            }
+        }
     }
     
     /// The refresh button in the navigation bar was pressed.
@@ -163,39 +276,44 @@ struct PlaylistsListView: View {
     
     func setupSubscriptions() {
         subscribeToIsAuthorizedPublisher()
-        spotify.didPressRefreshSubject
+        self.didRefreshCancellable = spotify.didPressRefreshSubject
             .receive(on: RunLoop.main)
             .sink(receiveValue: didPressRefresh)
-            .store(in: &cancellables)
     }
     
     func subscribeToIsAuthorizedPublisher() {
         Loggers.playlistsListView.trace("")
-        self.spotify.$isAuthorized
+        self.didAuthorizeCancellable = self.spotify.$isAuthorized
             .receive(on: RunLoop.main)
             .sink { isAuthorized in
                 Loggers.playlistsListView.trace(
-                    "$isAuthorized sink isAuthorized: \(isAuthorized)"
+                    "spotify.$isAuthorized: \(isAuthorized)"
                 )
                 if isAuthorized {
-                    self.loadingPlaylists = true
+                    if self.didRequestPlaylists { return }
+                    self.didRequestPlaylists = true
                     self.retrievePlaylistsFromSpotify()
                 }
                 else {
+                    self.didRequestPlaylists = false
+                    self.processingPlaylistsCount = nil
+                    self.checkForDuplicatesCancellables.cancellAll()
                     for playlist in self.savedPlaylists {
                         self.managedObjectContext.delete(playlist)
                     }
-                    do {
-                        try self.managedObjectContext.save()
-                        
-                    } catch {
-                        Loggers.playlistsListView.error(
-                            "couldn't save context:\n\(error)"
-                        )
+                    if self.managedObjectContext.hasChanges {
+                        do {
+                            try self.managedObjectContext.save()
+        
+                        } catch {
+                            Loggers.playlistsListView.error(
+                                "couldn't save context:\n\(error)"
+                            )
+                        }
                     }
                 }
-            }
-            .store(in: &cancellables)
+        }
+        
     }
     
 }
@@ -206,5 +324,3 @@ struct PlaylistsView_Previews: PreviewProvider {
     }
 }
 
-
-// test

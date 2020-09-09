@@ -8,6 +8,7 @@ enum ImageName: String {
     case spotifyLogoBlack = "spotify logo black"
     case spotifyAlbumPlaceholder = "spotify album placeholder"
     case jinxAlbum = "jinx album"
+    case annabelleOnChair = "annabelle on chair"
 }
 
 extension Image {
