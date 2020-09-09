@@ -14,7 +14,9 @@ struct PlaylistView: View {
     @ObservedObject var playlist: CDPlaylist
     
     var body: some View {
-        NavigationLink(destination: PlaylistItemsView()) {
+        NavigationLink(
+            destination: PlaylistItemsView(playlist: playlist)
+        ) {
             HStack {
                 image
                     .resizable()
