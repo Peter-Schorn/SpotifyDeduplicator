@@ -15,15 +15,20 @@ struct PlaylistsListView: View {
             .init(keyPath: \CDPlaylist.index, ascending: true)
         ]
     ) var savedPlaylists: FetchedResults<CDPlaylist>
-
-    @State private var didRequestPlaylists = false
-
-    @State private var processingPlaylistsCount: Int? = nil
     
+    @FetchRequest(
+        entity: CDPlaylist.entity(),
+        sortDescriptors: [
+            .init(keyPath: \CDPlaylist.duplicatesCount, ascending: false)
+        ],
+        predicate: .init(format: "duplicatesCount > 0")
+        
+    ) var filteredPlaylists: FetchedResults<CDPlaylist>
+    
+    @State private var didRequestPlaylists = false
+    @State private var processingPlaylistsCount: Int? = nil
     @State private var isLoadingPlaylists = false
     @State private var couldntLoadPlaylists = false
-    
-    @State private var finishedViewLoadDelay = false
     
     // MARK: Cancellables
     @State private var didAuthorizeCancellable: AnyCancellable? = nil
@@ -31,7 +36,7 @@ struct PlaylistsListView: View {
     @State private var retrievePlaylistsCancellable: AnyCancellable? = nil
     @State private var checkForDuplicatesCancellables:
             Set<AnyCancellable> = []
-    
+
     var body: some View {
         ZStack {
             if savedPlaylists.isEmpty {
@@ -55,9 +60,14 @@ struct PlaylistsListView: View {
                         .lightSecondaryTitle()
                 }
             }
+            else if !spotify.isSortingByIndex &&
+                    filteredPlaylists.isEmpty {
+                Text("No Duplicate Playlists")
+                    .lightSecondaryTitle()
+            }
             else {
                 List {
-                    ForEach(savedPlaylists, id: \.self) { playlist in
+                    ForEach(playlists, id: \.self) { playlist in
                         PlaylistView(playlist: playlist)
                     }
                     Rectangle()
@@ -85,6 +95,13 @@ struct PlaylistsListView: View {
         }
     }
     
+    var playlists: FetchedResults<CDPlaylist> {
+        if spotify.isSortingByIndex {
+            return savedPlaylists
+        }
+        return filteredPlaylists
+    }
+    
     func retrievePlaylistsFromSpotify() {
         
         Loggers.playlistsListView.notice(
@@ -109,7 +126,7 @@ struct PlaylistsListView: View {
         self.isLoadingPlaylists = true
         self.retrievePlaylistsCancellable = spotify.getCurrentUserId()
             .flatMap { _ in
-                self.spotify.api.currentUserPlaylists()  // limit: 15)
+                self.spotify.api.currentUserPlaylists()
             }
             .extendPages(spotify.api)
             .receive(on: RunLoop.main)
@@ -317,9 +334,9 @@ struct PlaylistsListView: View {
     
 }
 
-struct PlaylistsView_Previews: PreviewProvider {
-    static var previews: some View {
-        PlaylistsListView()
-    }
-}
+//struct PlaylistsView_Previews: PreviewProvider {
+//    static var previews: some View {
+//        PlaylistsListView()
+//    }
+//}
 

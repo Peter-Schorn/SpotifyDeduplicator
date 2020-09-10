@@ -26,6 +26,7 @@ extension CDPlaylist {
     @NSManaged public var tracksCount: Int64
     @NSManaged public var uri: String?
     @NSManaged public var albums: NSSet?
+    @NSManaged public var duplicatesCount: Int64
 
 }
 

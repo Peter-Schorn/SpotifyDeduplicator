@@ -90,7 +90,9 @@ struct PlaylistView: View {
                 // if the snapshot id has changed, then the playlist image
                 // might have changed, so don't use the image saved in CoreData.
                 playlist.snapshotId == playlist.lastImageRequestedSnapshotId {
-            self.image = image
+            DispatchQueue.main.async {
+                self.image = image
+            }
             
             return
         }
@@ -102,7 +104,7 @@ struct PlaylistView: View {
             return
         }
         
-        playlist.loadImage(spotify)
+        let cancellable = playlist.loadImage(spotify)
             .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { completion in
@@ -128,7 +130,10 @@ struct PlaylistView: View {
                     }
                 }
             )
-            .store(in: &self.cancellables)
+        
+        DispatchQueue.main.async {
+            self.cancellables.insert(cancellable)
+        }
     }
     
 }

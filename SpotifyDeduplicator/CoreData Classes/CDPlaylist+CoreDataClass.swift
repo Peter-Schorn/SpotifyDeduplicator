@@ -24,12 +24,16 @@ public class CDPlaylist: NSManagedObject {
     var finishedDeDuplicating = PassthroughSubject<Void, Never>()
     
     /// `index` is the index of the item in the playlist.
-    var duplicatePlaylistItems: [(PlaylistItem, index: Int)] = []
+    var duplicatePlaylistItems: [(PlaylistItem, index: Int)] = [] {
+        didSet {
+            duplicatesCount = Int64(duplicatePlaylistItems.count)
+        }
+    }
     
     /// Equivalent to `duplicatePlaylistItems.count`.
-    var duplicatesCount: Int {
-        return duplicatePlaylistItems.count
-    }
+//    var duplicatesCount: Int {
+//        return duplicatePlaylistItems.count
+//    }
     
     /// Converts `imageData` to `Image`.
     var image: Image? {
@@ -38,10 +42,6 @@ public class CDPlaylist: NSManagedObject {
         }
         return nil
     }
-    
-//    var albumsArray: [CDAlbum] {
-//        let
-//    }
     
     /// Sets `name`, `snapshotId`, `uri`, and `tracksCount`.
     func setFromPlaylist(_ playlist: Playlist<PlaylistsItemsReference>) {

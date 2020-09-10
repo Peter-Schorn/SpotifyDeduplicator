@@ -3,6 +3,7 @@ import Combine
 import SwiftUI
 import Logger
 import KeychainAccess
+import CoreData
 @testable import SpotifyWebAPI
 
 final class Spotify: ObservableObject {
@@ -34,7 +35,8 @@ final class Spotify: ObservableObject {
     @Published var alertTitle = ""
     @Published var alertMessage = ""
     @Published var alertIsPresented = false
-
+    @Published var isSortingByIndex = true
+    
     // MARK: - Subjects -
     
     /// Emits after the request for access and refresh tokens
@@ -42,6 +44,7 @@ final class Spotify: ObservableObject {
     let didAuthorizeSubject = PassthroughSubject<Void, Error>()
 
     let didPressRefreshSubject = PassthroughSubject<Void, Never>()
+
     
     var cancellables: [AnyCancellable] = []
 

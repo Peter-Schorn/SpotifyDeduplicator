@@ -1,6 +1,7 @@
 import SwiftUI
 import Combine
 import SpotifyWebAPI
+import CoreData
 
 struct RootView: View {
     
@@ -18,15 +19,18 @@ struct RootView: View {
         NavigationView {
             
             PlaylistsListView()
-                .padding(.top)
-                .navigationBarTitle(
-                    "Spotify Deduplicator",
-                    displayMode: .inline
-                )
-                .navigationBarItems(
-                    leading: refreshButton,
-                    trailing: logoutButton
-                )
+            .padding(.top)
+            .navigationBarTitle(
+                "Spotify Deduplicator",
+                displayMode: .inline
+            )
+            .navigationBarItems(
+                leading: HStack {
+                    refreshButton
+                    filterButton
+                },
+                trailing: logoutButton
+            )
             
         }
         .modifier(LoginView())
@@ -49,6 +53,22 @@ struct RootView: View {
     var refreshButton: some View {
         Button(action: spotify.didPressRefreshSubject.send) {
             Image(systemName: "arrow.clockwise")
+        }
+        .scaleEffect(1.3)
+    }
+    
+    var filterButton: some View {
+        Image(
+            systemName: spotify.isSortingByIndex ?
+                    "line.horizontal.3.decrease.circle" :
+                    "line.horizontal.3.decrease.circle.fill"
+        )
+        .foregroundColor(.blue)
+        .padding(.horizontal)
+        .offset(y: 2)
+        .scaleEffect(1.3)
+        .onTapGesture {
+            self.spotify.isSortingByIndex.toggle()
         }
     }
     

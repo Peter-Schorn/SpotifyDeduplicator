@@ -105,7 +105,7 @@ struct DeDuplicateView: View {
         for playlist in savedPlaylists {
             playlist.deDuplicate(spotify)
             if playlist.isDeduplicating {
-                totalDuplicateItems += playlist.duplicatesCount
+                totalDuplicateItems += Int(playlist.duplicatesCount)
                 deDuplicatingPlaylistsCount += 1
                 Loggers.deDuplicateView.trace(
                     "DeDuplicating \(playlist.name ?? "nil"); " +
