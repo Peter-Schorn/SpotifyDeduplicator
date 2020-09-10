@@ -4,7 +4,7 @@ import Combine
 import SpotifyWebAPI
 
 struct DeDuplicateView: View {
-    
+
     fileprivate static var debugText: AnyView? = nil
     
     @EnvironmentObject var spotify: Spotify
@@ -26,12 +26,7 @@ struct DeDuplicateView: View {
     var body: some View {
         Button(action: deDuplicate) {
             buttonView
-                .padding(.vertical, 10)
-                .padding(.horizontal, 20)
-                .frame(width: 300, height: 60)
-                .background(Color.green)
-                .clipShape(Capsule())
-                .shadow(radius: 10)
+                .deDuplicateButtonStyle()
         }
         .buttonStyle(PlainButtonStyle())
         .allowsHitTesting(
@@ -142,6 +137,7 @@ struct DeDuplicateView: View {
     }
     
 }
+
 
 struct DeDuplicateView_Previews: PreviewProvider {
 

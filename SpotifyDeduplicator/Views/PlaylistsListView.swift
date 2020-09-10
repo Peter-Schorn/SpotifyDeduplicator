@@ -23,6 +23,8 @@ struct PlaylistsListView: View {
     @State private var isLoadingPlaylists = false
     @State private var couldntLoadPlaylists = false
     
+    @State private var finishedViewLoadDelay = false
+    
     // MARK: Cancellables
     @State private var didAuthorizeCancellable: AnyCancellable? = nil
     @State private var didRefreshCancellable: AnyCancellable? = nil
@@ -33,28 +35,25 @@ struct PlaylistsListView: View {
     var body: some View {
         ZStack {
             if savedPlaylists.isEmpty {
-                Group {
-                    if isLoadingPlaylists {
-                        HStack {
-                            ActivityIndicator(
-                                isAnimating: .constant(true),
-                                style: .large
-                            )
+                if isLoadingPlaylists {
+                    HStack {
+                        ActivityIndicator(
+                            isAnimating: .constant(true),
+                            style: .large
+                        )
                             .scaleEffect(0.8)
-                            Text("Retrieving Playlists")
-                                .lightSecondaryTitle()
-                        }
-                    }
-                    else if couldntLoadPlaylists {
-                        Text("Couldn't Load Playlists")
-                            .lightSecondaryTitle()
-                    }
-                    else if self.spotify.isAuthorized {
-                        Text("No Playlists Found")
+                        Text("Retrieving Playlists")
                             .lightSecondaryTitle()
                     }
                 }
-                .zIndex(0)
+                else if couldntLoadPlaylists {
+                    Text("Couldn't Load Playlists")
+                        .lightSecondaryTitle()
+                }
+                else if self.spotify.isAuthorized {
+                    Text("No Playlists Found")
+                        .lightSecondaryTitle()
+                }
             }
             else {
                 List {
@@ -65,16 +64,13 @@ struct PlaylistsListView: View {
                         .fill(Color.clear)
                         .frame(height: 50)
                 }
-                .zIndex(1)
                 VStack {
                     Spacer()
                     DeDuplicateView(
                         processingPlaylistsCount: $processingPlaylistsCount
                     )
-                        .padding(.bottom, 15)
+                    .padding(.bottom, 15)
                 }
-                .zIndex(2)
-                
             }
         }
         .alert(isPresented: $spotify.alertIsPresented) {

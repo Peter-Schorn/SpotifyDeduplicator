@@ -8,14 +8,29 @@ struct PlaylistView: View {
     @EnvironmentObject var spotify: Spotify
     @Environment(\.managedObjectContext) var managedObjectContext
     
-    @State private var image = Image(.spotifyAlbumPlaceholder)
     @State private var cancellables: Set<AnyCancellable> = []
+    @State private var image = Image(.spotifyAlbumPlaceholder)
     
     @ObservedObject var playlist: CDPlaylist
+
+    var playlistText: Text {
+        var name = Text(playlist.name ?? "No Name")
+        if playlist.tracksCount == 1 {
+            name = name + Text(" - 1 track")
+                .foregroundColor(.secondary)
+        }
+        else if playlist.tracksCount > 0 {
+            name = name + Text(" - \(playlist.tracksCount) tracks")
+                .foregroundColor(.secondary)
+                
+        }
+        return name
+            .font(.headline)
+    }
     
     var body: some View {
         NavigationLink(
-            destination: PlaylistItemsView(playlist: playlist)
+            destination: PlaylistItemsListView(playlist: playlist)
         ) {
             HStack {
                 image
@@ -26,8 +41,7 @@ struct PlaylistView: View {
                     .shadow(radius: 5)
                 VStack {
                     HStack {
-                        Text(playlist.name ?? "No Name")
-                            .font(.headline)
+                        playlistText
                         if playlist.isCheckingForDuplicates ||
                                 playlist.isDeduplicating {
                             ActivityIndicator(
