@@ -61,8 +61,9 @@ struct PlaylistsListView: View {
                 }
             }
             else if !spotify.isSortingByIndex &&
-                    filteredPlaylists.isEmpty {
-                Text("No Duplicate Playlists")
+                    filteredPlaylists.isEmpty &&
+                    self.spotify.isAuthorized {
+                Text("No Playlists With Duplicates")
                     .lightSecondaryTitle()
             }
             else {
@@ -230,9 +231,9 @@ struct PlaylistsListView: View {
             )
             if let cancellable = cdPlaylist.checkForDuplicates(spotify) {
                 self.checkForDuplicatesCancellables.insert(cancellable)
+                self.processingPlaylistsCount =
+                    (self.processingPlaylistsCount ?? 0) + 1
             }
-            self.processingPlaylistsCount =
-                (self.processingPlaylistsCount ?? 0) + 1
             
             cdPlaylist.finishedCheckingForDuplicates
                 .receive(on: RunLoop.main)

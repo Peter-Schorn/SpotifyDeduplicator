@@ -11,8 +11,8 @@
         <attribute name="duplicatesCount" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="imageData" optional="YES" attributeType="Binary"/>
         <attribute name="index" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="lastDeDuplicatedSnapshotId" optional="YES" attributeType="String"/>
         <attribute name="lastImageRequestedSnapshotId" optional="YES" attributeType="String"/>
-        <attribute name="lastTrackCheckedSnapshotId" optional="YES" attributeType="String"/>
         <attribute name="name" optional="YES" attributeType="String"/>
         <attribute name="snapshotId" optional="YES" attributeType="String"/>
         <attribute name="tracksCount" optional="YES" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
@@ -21,6 +21,6 @@
     </entity>
     <elements>
         <element name="CDAlbum" positionX="150.98828125" positionY="-7.69140625" width="128" height="118"/>
-        <element name="CDPlaylist" positionX="55.12890625" positionY="134.2734375" width="128" height="193"/>
+        <element name="CDPlaylist" positionX="55.12890625" positionY="134.2734375" width="128" height="28"/>
     </elements>
 </model>

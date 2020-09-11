@@ -30,11 +30,6 @@ public class CDPlaylist: NSManagedObject {
         }
     }
     
-    /// Equivalent to `duplicatePlaylistItems.count`.
-//    var duplicatesCount: Int {
-//        return duplicatePlaylistItems.count
-//    }
-    
     /// Converts `imageData` to `Image`.
     var image: Image? {
         if let data = self.imageData, let uiImage = UIImage(data: data) {
@@ -61,10 +56,10 @@ public class CDPlaylist: NSManagedObject {
                 .anyFailingPublisher(Image.self)
         }
         
-        // if this method has already been called,
-        // meaning an image is already being retreived from the web,
-        // then return the same publisher instead of creating a new one,
-        // ensuring that the image is only requested from the network once.
+        // If this method has already been called, meaning an image is already
+        // being retreived from the web, then return the same publisher instead
+        // of creating a new one, ensuring that the image is only requested from
+        // the network once.
         if let loadImagePublisher = self.loadImagePublisher {
             Loggers.loadingImages.trace(
                 "\nreturning previous loadImagePublisher for " +
@@ -132,6 +127,22 @@ public class CDPlaylist: NSManagedObject {
         _ spotify: Spotify
     ) -> AnyCancellable? {
     
+        if self.snapshotId == self.lastDeDuplicatedSnapshotId &&
+                self.lastDeDuplicatedSnapshotId != nil {
+            // No need to check the playlist for duplicates; the snapshot id
+            // hasn't changed since the last time duplicates were removed from
+            // the playlist. The snapshot id is a version identifier for the
+            // playlist. Everytime the playlist changes, the snapshot id changes.
+            return nil
+        }
+        
+        guard spotify.isAuthorized else {
+            Loggers.cdPlaylist.warning(
+                "Unauthorized for \(self.name ?? "nil")"
+            )
+            return nil
+        }
+        
         guard let uri = self.uri else {
             Loggers.cdPlaylist.error(
                 "URI was nil for \(self.name ?? "nil")"
@@ -292,10 +303,10 @@ public class CDPlaylist: NSManagedObject {
         
     }
     
-    
+    /// Remove all of the duplicate items from Spotify
     func deDuplicate(_ spotify: Spotify) {
         
-        if duplicatePlaylistItems.isEmpty {
+        if duplicatePlaylistItems.isEmpty || !spotify.isAuthorized {
             return
         }
         
@@ -364,6 +375,7 @@ public class CDPlaylist: NSManagedObject {
                                     "finished removing all duplicates for: " +
                                     "\(self.name ?? "nil")"
                                 )
+                                self.lastDeDuplicatedSnapshotId = self.snapshotId
                                 self.duplicatePlaylistItems = []
                                 self.isDeduplicating = false
                                 self.finishedDeDuplicating.send()

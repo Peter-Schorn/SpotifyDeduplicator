@@ -31,6 +31,7 @@ struct PlaylistItemsListView: View {
                     List {
                         header
                         ForEach(playlist.duplicatePlaylistItems, id: \.0) { item in
+                            
                             PlaylistItemView(playlistItem: item.0)
                         }
                         Rectangle()

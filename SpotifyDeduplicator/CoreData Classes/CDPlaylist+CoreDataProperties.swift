@@ -20,7 +20,7 @@ extension CDPlaylist {
     @NSManaged public var imageData: Data?
     @NSManaged public var index: Int64
     @NSManaged public var lastImageRequestedSnapshotId: String?
-    @NSManaged public var lastTrackCheckedSnapshotId: String?
+    @NSManaged public var lastDeDuplicatedSnapshotId: String?
     @NSManaged public var name: String?
     @NSManaged public var snapshotId: String?
     @NSManaged public var tracksCount: Int64
