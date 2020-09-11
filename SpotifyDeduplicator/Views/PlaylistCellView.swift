@@ -3,7 +3,7 @@ import Combine
 import CoreData
 import SpotifyWebAPI
 
-struct PlaylistView: View {
+struct PlaylistCellView: View {
     
     @EnvironmentObject var spotify: Spotify
     @Environment(\.managedObjectContext) var managedObjectContext
@@ -55,7 +55,7 @@ struct PlaylistView: View {
                             playlist.didCheckForDuplicates &&
                             !playlist.isDeduplicating {
                         HStack {
-                            if playlist.duplicatePlaylistItems.isEmpty {
+                            if playlist.duplicatesCount == 0 {
                                 Text("No Duplicates")
                             }
                             else if playlist.duplicatesCount == 1 {
@@ -180,9 +180,9 @@ struct PlaylistView_Previews: PreviewProvider {
     
     static var previews: some View {
         List {
-            PlaylistView(playlist: playlist)
-            PlaylistView(playlist: playlist2)
-            PlaylistView(playlist: playlist3)
+            PlaylistCellView(playlist: playlist)
+            PlaylistCellView(playlist: playlist2)
+            PlaylistCellView(playlist: playlist3)
         }
         .environmentObject(Spotify())
         .environment(\.managedObjectContext, managedObjectContext)

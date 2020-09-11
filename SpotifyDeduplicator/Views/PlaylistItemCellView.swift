@@ -3,7 +3,7 @@ import CoreData
 import Combine
 import SpotifyWebAPI
 
-struct PlaylistItemView: View {
+struct PlaylistItemCellView: View {
     
     @Environment(\.managedObjectContext) var managedObjectContext
 
@@ -15,21 +15,25 @@ struct PlaylistItemView: View {
     @State private var image = Image(.spotifyAlbumPlaceholder)
     
     var playlistItem: PlaylistItem
+    var indexInPlaylist: Int
     
-    init(playlistItem: PlaylistItem) {
-        self.playlistItem = playlistItem
+    init(playlistItem: (PlaylistItem, index: Int)) {
+        self.playlistItem = playlistItem.0
+        self.indexInPlaylist = playlistItem.index
+        
         
         let albumURI: String?
-        switch playlistItem {
+        switch self.playlistItem {
             case .track(let track):
                 albumURI = track.album?.uri
             case .episode(let episode):
                 albumURI = episode.show?.uri
         }
-        Loggers.playlistItemView.trace(
-            "album URI for \(playlistItem.name): " +
-            (albumURI ?? "nil")
-        )
+        if albumURI == nil {
+            Loggers.playlistItemCellView.warning(
+                "album URI was nil for \(playlistItem.0.name)"
+            )
+        }
         
         self._savedAlbums = FetchRequest(
             entity: CDAlbum.entity(),
@@ -77,14 +81,16 @@ struct PlaylistItemView: View {
     func loadImage() {
         
         guard let album = savedAlbums.first else {
-            Loggers.playlistItemView.warning(
+            Loggers.playlistItemCellView.warning(
                 "couldn't get saved album"
             )
             return
         }
         
         if let image = album.image {
-            self.image = image
+            DispatchQueue.main.async {
+                self.image = image
+            }
             return
         }
         
@@ -95,7 +101,7 @@ struct PlaylistItemView: View {
             return
         }
         
-        album.loadImage(spotify)
+        let cancellable = album.loadImage(spotify)
             .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { completion in
@@ -121,8 +127,9 @@ struct PlaylistItemView: View {
                     }
                 }
             )
-            .store(in: &self.cancellables)
-        
+        DispatchQueue.main.async {
+            self.cancellables.insert(cancellable)
+        }
 
     }
     

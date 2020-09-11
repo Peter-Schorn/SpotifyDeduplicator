@@ -14,6 +14,11 @@ struct PlaylistItemsListView: View {
     @ObservedObject var playlist: CDPlaylist
     
     @State private var deDuplicateCancellable: AnyCancellable? = nil
+    @State private var refreshCancellable: AnyCancellable? = nil
+    
+    @State private var alertTitle = ""
+    @State private var alertMessage = ""
+    @State private var alertIsPresented = false
     
     var body: some View {
         Group {
@@ -21,18 +26,37 @@ struct PlaylistItemsListView: View {
                 VStack {
                     header
                     Spacer()
-                    Text("No Duplicates")
-                        .lightSecondaryTitle()
+                    if playlist.isCheckingForDuplicates || playlist.isReloading {
+                        HStack {
+                            ActivityIndicator(
+                                isAnimating: .constant(true),
+                                style: .large
+                            )
+                                .scaleEffect(0.8)
+                            if playlist.isCheckingForDuplicates {
+                                Text("Checking For Duplicates")
+                                    .lightSecondaryTitle()
+                            }
+                            else {
+                                Text("Retrieving Playlist")
+                                    .lightSecondaryTitle()
+                            }
+                        }
+                    }
+                    else {
+                        Text("No Duplicates")
+                            .lightSecondaryTitle()
+                    }
                     Spacer()
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             else {
                 ZStack {
                     List {
                         header
                         ForEach(playlist.duplicatePlaylistItems, id: \.0) { item in
-                            
-                            PlaylistItemView(playlistItem: item.0)
+                            PlaylistItemCellView(playlistItem: item)
                         }
                         Rectangle()
                         .fill(Color.clear)
@@ -47,16 +71,24 @@ struct PlaylistItemsListView: View {
                         .buttonStyle(PlainButtonStyle())
                         .allowsHitTesting(
                             spotify.isAuthorized &&
-                                    !playlist.isDeduplicating
+                                    !playlist.isDeduplicating &&
+                                    !playlist.isCheckingForDuplicates &&
+                                    !playlist.isReloading
                         )
                         .padding(.vertical, 10)
                     }
                 }
             }
         }
+        .navigationBarItems(trailing: refreshButton)
+        .alert(isPresented: $alertIsPresented) {
+            Alert(
+                title: Text(self.alertTitle),
+                message: Text(self.alertMessage)
+            )
+        }
         
     }
-    
     
     var header: some View {
         VStack {
@@ -67,7 +99,7 @@ struct PlaylistItemsListView: View {
                 .bold()
                 .lineLimit(1)
                 .minimumScaleFactor(0.5)
-            if playlist.duplicatesCount > 0 {
+            if playlist.duplicatesCount > 0 && playlist.didCheckForDuplicates {
                 if playlist.duplicatesCount == 1 {
                     Text("1 Duplicate")
                         .foregroundColor(.secondary)
@@ -94,15 +126,27 @@ struct PlaylistItemsListView: View {
     
     var buttonViewText: AnyView {
         
-        if playlist.isDeduplicating {
+        if playlist.isDeduplicating ||
+                playlist.isCheckingForDuplicates ||
+                playlist.isReloading {
             return HStack {
                 ActivityIndicator(
                     isAnimating: .constant(true),
                     style: .large
                 )
                 .scaleEffect(0.8)
-                Text("De-Duplicating")
+                if playlist.isDeduplicating {
+                        Text("De-Duplicating")
                     .deDuplicateTextStyle()
+                }
+                else if playlist.isCheckingForDuplicates {
+                    Text("Checking For Duplicates")
+                        .deDuplicateTextStyle()
+                }
+                else {
+                    Text("Refreshing Playlist")
+                        .deDuplicateTextStyle()
+                }
             }
             .eraseToAnyView()
         }
@@ -111,31 +155,55 @@ struct PlaylistItemsListView: View {
             .deDuplicateTextStyle()
             .eraseToAnyView()
     }
+
+    var refreshButton: some View {
+           Button(action: {
+               self.playlist.reload(self.spotify)
+           }, label:  {
+               Image(systemName: "arrow.clockwise")
+                   .font(.title)
+                   .scaleEffect(0.9)
+           })
+           .disabled(
+               !spotify.isAuthorized ||
+                   playlist.isDeduplicating ||
+                   playlist.isCheckingForDuplicates ||
+                   playlist.isReloading
+           )
+           
+       }
     
     func deDuplicate() {
         let totalDuplicateItems = playlist.duplicatesCount
         if totalDuplicateItems == 0 { return }
-        playlist.deDuplicate(spotify)
-        deDuplicateCancellable = playlist.finishedDeDuplicating
+        deDuplicateCancellable = playlist.deDuplicate(spotify)?
             .receive(on: RunLoop.main)
-            .sink {
-                if totalDuplicateItems == 1 {
-                    self.spotify.alertTitle = """
-                        Removed 1 Duplicate from \
-                        \(self.playlist.name ?? "No Name")
-                        """
+            .sink(receiveCompletion: { completion in
+                switch completion {
+                    case .finished:
+                        if totalDuplicateItems == 1 {
+                            self.spotify.alertTitle = """
+                                Removed 1 Duplicate from \
+                                \(self.playlist.name ?? "No Name")
+                                """
+                        }
+                        else {
+                            self.spotify.alertTitle = """
+                                Removed \(totalDuplicateItems) Duplicates from \
+                                \(self.playlist.name ?? "No Name")
+                                """
+                        }
+                        self.alertMessage = ""
+                        self.alertIsPresented = true
+                    case .failure(let error):
+                        self.alertTitle = "Couldn't Remove Duplicates"
+                        self.alertMessage = error.localizedDescription
+                        self.alertIsPresented = true
                 }
-                else {
-                    self.spotify.alertTitle = """
-                        Removed \(totalDuplicateItems) Duplicates from \
-                        \(self.playlist.name ?? "No Name")
-                        """
-                }
-                self.spotify.alertMessage = ""
-                self.spotify.alertIsPresented = true
-            }
+            })
+        
     }
-
+    
 }
 
  struct PlaylistItemsListView_Previews: PreviewProvider {

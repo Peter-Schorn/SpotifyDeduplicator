@@ -36,6 +36,7 @@ final class Spotify: ObservableObject {
     @Published var alertMessage = ""
     @Published var alertIsPresented = false
     @Published var isSortingByIndex = true
+    @Published var isLoadingPlaylists = false
     
     // MARK: - Subjects -
     

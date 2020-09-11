@@ -6,6 +6,7 @@ import SpotifyWebAPI
 struct PlaylistsListView: View {
     
     @Environment(\.managedObjectContext) var managedObjectContext
+    @Environment(\.colorScheme) var colorScheme
 
     @EnvironmentObject var spotify: Spotify
     
@@ -26,8 +27,7 @@ struct PlaylistsListView: View {
     ) var filteredPlaylists: FetchedResults<CDPlaylist>
     
     @State private var didRequestPlaylists = false
-    @State private var processingPlaylistsCount: Int? = nil
-    @State private var isLoadingPlaylists = false
+    @State private var processingPlaylistsCount = 0
     @State private var couldntLoadPlaylists = false
     
     // MARK: Cancellables
@@ -40,7 +40,7 @@ struct PlaylistsListView: View {
     var body: some View {
         ZStack {
             if savedPlaylists.isEmpty {
-                if isLoadingPlaylists {
+                if spotify.isLoadingPlaylists {
                     HStack {
                         ActivityIndicator(
                             isAnimating: .constant(true),
@@ -69,7 +69,7 @@ struct PlaylistsListView: View {
             else {
                 List {
                     ForEach(playlists, id: \.self) { playlist in
-                        PlaylistView(playlist: playlist)
+                        PlaylistCellView(playlist: playlist)
                     }
                     Rectangle()
                         .fill(Color.clear)
@@ -108,6 +108,14 @@ struct PlaylistsListView: View {
         Loggers.playlistsListView.notice(
             "isAuthorized: \(spotify.isAuthorized)"
         )
+        
+        self.checkForDuplicatesCancellables.cancellAll()
+        
+        self.processingPlaylistsCount = 0
+        for playlist in savedPlaylists {
+            playlist.isCheckingForDuplicates = false
+        }
+        
         if !spotify.isAuthorized {
             Loggers.playlistsListView.error(
                 "tried to retrieve playlists without authorization"
@@ -115,16 +123,9 @@ struct PlaylistsListView: View {
             return
         }
         
-        self.checkForDuplicatesCancellables.cancellAll()
-        
-        self.processingPlaylistsCount = nil
-        for playlist in savedPlaylists {
-            playlist.isCheckingForDuplicates = false
-        }
-        
         var allUserPlaylistURIs: Set<String> = []
         
-        self.isLoadingPlaylists = true
+        self.spotify.isLoadingPlaylists = true
         self.retrievePlaylistsCancellable = spotify.getCurrentUserId()
             .flatMap { _ in
                 self.spotify.api.currentUserPlaylists()
@@ -133,7 +134,7 @@ struct PlaylistsListView: View {
             .receive(on: RunLoop.main)
             .sink(
                 receiveCompletion: { completion in
-                    self.isLoadingPlaylists = false
+                    self.spotify.isLoadingPlaylists = false
                     switch completion {
                         case .finished:
                             Loggers.playlistsListView.trace(
@@ -229,29 +230,23 @@ struct PlaylistsListView: View {
             Loggers.playlistsListView.trace(
                 "checking for duplicates for \(cdPlaylist.name ?? "nil")"
             )
-            if let cancellable = cdPlaylist.checkForDuplicates(spotify) {
-                self.checkForDuplicatesCancellables.insert(cancellable)
-                self.processingPlaylistsCount =
-                    (self.processingPlaylistsCount ?? 0) + 1
-            }
+            if let publisher = cdPlaylist.checkForDuplicates(spotify) {
+                self.processingPlaylistsCount += 1
+                
+                publisher
+                    .receive(on: RunLoop.main)
+                    .sink(receiveCompletion: { _ in
+                        self.processingPlaylistsCount -= 1
+                        Loggers.playlistsListView.trace(
+                            """
+                            finishedCheckingForDuplicates for \(cdPlaylist.name ?? "nil");
+                            count: \(self.processingPlaylistsCount)
+                            """
+                        )
+                    })
+                    .store(in: &checkForDuplicatesCancellables)
             
-            cdPlaylist.finishedCheckingForDuplicates
-                .receive(on: RunLoop.main)
-                .sink {
-                    if let count = self.processingPlaylistsCount {  // , count > 0 {
-                        self.processingPlaylistsCount = count - 1
-                    }
-                    let stringCount = self.processingPlaylistsCount
-                        .map(String.init) ?? "nil"
-                    Loggers.playlistsListView.trace(
-                        """
-                        finishedCheckingForDuplicates for \
-                        \(cdPlaylist.name ?? "nil"); count: \(stringCount)
-                        """
-                    )
-                    
-                }
-                .store(in: &checkForDuplicatesCancellables)
+            }
             
             
         }  // end for playlist in playlists
@@ -313,7 +308,7 @@ struct PlaylistsListView: View {
                 }
                 else {
                     self.didRequestPlaylists = false
-                    self.processingPlaylistsCount = nil
+                    self.processingPlaylistsCount = 0
                     self.checkForDuplicatesCancellables.cancellAll()
                     for playlist in self.savedPlaylists {
                         self.managedObjectContext.delete(playlist)

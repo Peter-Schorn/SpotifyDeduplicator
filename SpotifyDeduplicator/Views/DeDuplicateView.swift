@@ -19,9 +19,17 @@ struct DeDuplicateView: View {
     @State private var totalPlaylistsWithDuplicates = 0
     
     @State private var deDuplicateCancellables: Set<AnyCancellable> = []
-    @State private var deDuplicatingPlaylistsCount = 0
+    @State private var deDuplicatingPlaylistsCount = 0 {
+        didSet {
+            print("deDuplicatingPlaylistsCount: \(deDuplicatingPlaylistsCount)")
+        }
+    }
 
-    @Binding var processingPlaylistsCount: Int?
+    @Binding var processingPlaylistsCount: Int {
+        didSet {
+            print("processingPlaylistsCount: \(processingPlaylistsCount)")
+        }
+    }
     
     var body: some View {
         Button(action: deDuplicate) {
@@ -31,8 +39,8 @@ struct DeDuplicateView: View {
         .buttonStyle(PlainButtonStyle())
         .allowsHitTesting(
             spotify.isAuthorized &&
-                    processingPlaylistsCount == 0 &&
-                    deDuplicatingPlaylistsCount == 0
+                    processingPlaylistsCount <= 0 &&
+                    deDuplicatingPlaylistsCount <= 0
         )
     }
     
@@ -42,7 +50,8 @@ struct DeDuplicateView: View {
             return text
         }
         
-        if let count = processingPlaylistsCount, count > 0 {
+        if processingPlaylistsCount > 0 {
+            let count = processingPlaylistsCount
             return Text(
                 "Processing \(count)/\(savedPlaylists.count) Playlists"
             )
@@ -58,21 +67,23 @@ struct DeDuplicateView: View {
             .deDuplicateTextStyle()
             .eraseToAnyView()
         }
-        else if processingPlaylistsCount == 0 {
+        else if spotify.isLoadingPlaylists {
+            return HStack {
+                ActivityIndicator(
+                    isAnimating: .constant(true),
+                    style: .large
+                )
+                .scaleEffect(0.8)
+                Text("Reloading Playlists")
+                    .deDuplicateTextStyle()
+            }
+            .eraseToAnyView()
+        }
+        else {
             return Text("De-Depulicate")
                 .deDuplicateTextStyle()
                 .eraseToAnyView()
         }
-        return HStack {
-            ActivityIndicator(
-                isAnimating: .constant(true),
-                style: .large
-            )
-            .scaleEffect(0.8)
-            Text("Refreshing Playlists")
-                .deDuplicateTextStyle()
-        }
-        .eraseToAnyView()
         
     }
     
@@ -103,7 +114,35 @@ struct DeDuplicateView: View {
         var totalDuplicateItems = 0
         
         for playlist in savedPlaylists {
-            playlist.deDuplicate(spotify)
+            playlist.deDuplicate(spotify)?
+                .sink(receiveCompletion: { completion in
+                    self.deDuplicatingPlaylistsCount -= 1
+                    Loggers.deDuplicateView.trace(
+                        "FINSHED DeDuplicating \(playlist.name ?? "nil"); " +
+                        "count: \(self.deDuplicatingPlaylistsCount as Any)"
+                    )
+                    if self.deDuplicatingPlaylistsCount <= 0 {
+                        switch completion {
+                            case .finished:
+                                self.spotify.alertTitle = """
+                                    Congrats! All Duplicates Have Been Removed from Your Playlists
+                                    """
+                                self.spotify.alertMessage = """
+                                    Removed \(totalDuplicateItems) Items from \
+                                    \(self.totalPlaylistsWithDuplicates) Playlists.
+                                    """
+                                self.spotify.alertIsPresented = true
+                            case .failure(let error):
+                                self.spotify.alertTitle = """
+                                    Duplicates Could Not Be Removed From One Or More Playlists
+                                    """
+                                self.spotify.alertMessage = error.localizedDescription
+                                self.spotify.alertIsPresented = true
+                        }
+                    }
+                })
+                .store(in: &deDuplicateCancellables)
+            
             if playlist.isDeduplicating {
                 totalDuplicateItems += Int(playlist.duplicatesCount)
                 deDuplicatingPlaylistsCount += 1
@@ -113,25 +152,6 @@ struct DeDuplicateView: View {
                 )
                 
             }
-            
-            playlist.finishedDeDuplicating.sink {
-                self.deDuplicatingPlaylistsCount -= 1
-                Loggers.deDuplicateView.trace(
-                    "FINSHED DeDuplicating \(playlist.name ?? "nil"); " +
-                    "count: \(self.deDuplicatingPlaylistsCount as Any)"
-                )
-                if self.deDuplicatingPlaylistsCount <= 0 {
-                    self.spotify.alertTitle = """
-                        Congrats! All Duplicates Have Been Removed from Your Playlists
-                        """
-                    self.spotify.alertMessage = """
-                        Removed \(totalDuplicateItems) Items from \
-                        \(self.totalPlaylistsWithDuplicates) Playlists.
-                        """
-                    self.spotify.alertIsPresented = true
-                }
-            }
-            .store(in: &deDuplicateCancellables)
             
         }
     }
@@ -154,7 +174,7 @@ struct DeDuplicateView_Previews: PreviewProvider {
         return spotify
     }()
     
-    static var count: Int? = 5
+    static var count = 5
 
     static let text = Text(
         // "De-Duplicate"

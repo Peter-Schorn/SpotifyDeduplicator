@@ -53,8 +53,10 @@ struct RootView: View {
     var refreshButton: some View {
         Button(action: spotify.didPressRefreshSubject.send) {
             Image(systemName: "arrow.clockwise")
+                .font(.title)
+                .scaleEffect(0.9)
         }
-        .scaleEffect(1.3)
+        .disabled(!spotify.isAuthorized || spotify.isLoadingPlaylists)
     }
     
     var filterButton: some View {
@@ -63,13 +65,15 @@ struct RootView: View {
                     "line.horizontal.3.decrease.circle" :
                     "line.horizontal.3.decrease.circle.fill"
         )
+        .font(.title)
         .foregroundColor(.blue)
         .padding(.horizontal)
         .offset(y: 2)
-        .scaleEffect(1.3)
+        .scaleEffect(0.9)
         .onTapGesture {
             self.spotify.isSortingByIndex.toggle()
         }
+        .disabled(!spotify.isAuthorized)
     }
     
     var logoutButton: some View {
