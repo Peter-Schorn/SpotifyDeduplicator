@@ -39,19 +39,19 @@ public class CDPlaylist: NSManagedObject {
         return nil
     }
     
-    /// Sets `name`, `snapshotId`, `uri`, and `tracksCount`.
+    /// Sets `name`, `snapshotId`, `uri`, and `itemsCount`.
     func setFromPlaylist(_ playlist: Playlist<PlaylistsItemsReference>) {
         self.name = playlist.name
         self.snapshotId = playlist.snapshotId
         self.uri = playlist.uri
-        self.tracksCount = Int64(playlist.items.total)
+        self.itemsCount = Int64(playlist.items.total)
     }
     
     func setFromPlaylist(_ playlist: Playlist<PlaylistItems>) {
         self.name = playlist.name
         self.snapshotId = playlist.snapshotId
         self.uri = playlist.uri
-        self.tracksCount = Int64(playlist.items.total)
+        self.itemsCount = Int64(playlist.items.total)
     }
 
     /// Loads the image using the URI of the playlist.
@@ -403,6 +403,7 @@ public class CDPlaylist: NSManagedObject {
         self.objectWillChange.send()
         
         var duplicateError: Error? = nil
+        let startingTotalDuplicateItems = self.duplicatesCount
         
         DispatchQueue.global(qos: .userInteractive).async {
 
@@ -442,12 +443,14 @@ public class CDPlaylist: NSManagedObject {
                         
                         semaphore.signal()
                         
-                        
                         if index == chunkedItemsArray.count - 1 {
                             // then we've finished removing duplicates
                             Loggers.cdPlaylist.trace(
                                 "finished removing all duplicates for: " +
                                 "\(self.name ?? "nil")"
+                            )
+                            self.itemsCount -= (
+                                startingTotalDuplicateItems - self.duplicatesCount
                             )
                             self.isDeduplicating = false
                             if let error = duplicateError {
@@ -465,11 +468,7 @@ public class CDPlaylist: NSManagedObject {
                     },
                     receiveValue: { snapshotId in
                         self.duplicatePlaylistItems.removeAll { playlistItem in
-                            if chunkedItems.contains(where: { $0 == playlistItem }) {
-                                self.tracksCount -= 1
-                                return true
-                            }
-                            return false
+                            chunkedItems.contains(where: { $0 == playlistItem })
                         }
                         guard index == chunkedItemsArray.count - 1 else {
                             return
@@ -491,6 +490,8 @@ public class CDPlaylist: NSManagedObject {
                 .store(in: &self.deDuplicateCancellables)
 
             }
+            
+            
             
                 
         }

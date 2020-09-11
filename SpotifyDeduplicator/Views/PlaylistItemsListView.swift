@@ -182,13 +182,13 @@ struct PlaylistItemsListView: View {
                 switch completion {
                     case .finished:
                         if totalDuplicateItems == 1 {
-                            self.spotify.alertTitle = """
+                            self.alertTitle = """
                                 Removed 1 Duplicate from \
                                 \(self.playlist.name ?? "No Name")
                                 """
                         }
                         else {
-                            self.spotify.alertTitle = """
+                            self.alertTitle = """
                                 Removed \(totalDuplicateItems) Duplicates from \
                                 \(self.playlist.name ?? "No Name")
                                 """

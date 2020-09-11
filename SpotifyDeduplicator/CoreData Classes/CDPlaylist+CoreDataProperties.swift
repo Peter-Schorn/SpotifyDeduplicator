@@ -23,7 +23,7 @@ extension CDPlaylist {
     @NSManaged public var lastDeDuplicatedSnapshotId: String?
     @NSManaged public var name: String?
     @NSManaged public var snapshotId: String?
-    @NSManaged public var tracksCount: Int64
+    @NSManaged public var itemsCount: Int64
     @NSManaged public var uri: String?
     @NSManaged public var albums: NSSet?
     @NSManaged public var duplicatesCount: Int64

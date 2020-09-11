@@ -15,12 +15,12 @@ struct PlaylistCellView: View {
 
     var playlistText: Text {
         var name = Text(playlist.name ?? "No Name")
-        if playlist.tracksCount == 1 {
+        if playlist.itemsCount == 1 {
             name = name + Text(" - 1 track")
                 .foregroundColor(.secondary)
         }
-        else if playlist.tracksCount > 0 {
-            name = name + Text(" - \(playlist.tracksCount) tracks")
+        else if playlist.itemsCount > 0 {
+            name = name + Text(" - \(playlist.itemsCount) tracks")
                 .foregroundColor(.secondary)
                 
         }
