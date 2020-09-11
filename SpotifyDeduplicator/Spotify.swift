@@ -4,7 +4,7 @@ import SwiftUI
 import Logger
 import KeychainAccess
 import CoreData
-@testable import SpotifyWebAPI
+import SpotifyWebAPI
 
 final class Spotify: ObservableObject {
     

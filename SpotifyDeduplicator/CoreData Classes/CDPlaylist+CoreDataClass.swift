@@ -199,9 +199,13 @@ public class CDPlaylist: NSManagedObject {
             // The snapshot id is a version identifier for the playlist.
             // Everytime the playlist changes, the snapshot id changes.
             Loggers.cdPlaylist.trace(
-                "snapshotId == lastDeDuplicatedSnapshotId or " +
-                "lastCheckedForDuplicatesSnapshotId for " +
-                "\(self.name ?? "nil")"
+                """
+                \(self.name ?? "nil") \
+                snapshotId == lastDeDuplicatedSnapshotId: \
+                \(snapshotId == lastDeDuplicatedSnapshotId)
+                snapshotId == lastCheckedForDuplicatesSnapshotId: \
+                \(snapshotId == lastCheckedForDuplicatesSnapshotId)
+                """
             )
             self.didCheckForDuplicates = true
             self.objectWillChange.send()
@@ -225,32 +229,43 @@ public class CDPlaylist: NSManagedObject {
         self.isCheckingForDuplicates = true
         self.objectWillChange.send()
         
-        Loggers.cdPlaylist.trace(
-            "checking for duplicates for \(self.name ?? "nil")"
+        Loggers.cdPlaylistTimeProfiler.trace(
+            "\(self.name ?? "nil"): spotify.api.playlistItems(uri): " +
+            "\(Date().timeIntervalSinceReferenceDate)"
         )
-        
         return spotify.api.playlistItems(uri)
             .extendPages(spotify.api)
-            .collect()
-            // MARK: Reschedule
-            .receive(on: RunLoop.main)
-            .handleEvents(receiveCompletion: { completion in
-                Loggers.cdPlaylist.trace(
-                    "spotify.api.playlistItems completion for " +
-                    "\(self.name ?? "nil"): \(completion)"
+            .handleEvents(receiveOutput: { playlistItems in
+                Loggers.cdPlaylistTimeProfiler.trace(
+                    "page at offset \(playlistItems.offset)"
                 )
-                self.isCheckingForDuplicates = false
-                switch completion {
-                    case .finished:
-                         self.didCheckForDuplicates = true
-                         self.lastCheckedForDuplicatesSnapshotId = self.snapshotId
-                         if self.duplicatesCount == 0 {
-                            self.lastDeDuplicatedSnapshotId = self.snapshotId
-                        }
-                    case .failure(_):
-                        break
+            })
+            .collect()
+            .handleEvents(receiveCompletion: { completion in
+//                Loggers.cdPlaylistTimeProfiler.trace(
+//                    "spotify.api.playlistItems completion for " +
+//                    "\(self.name ?? "nil"): \(completion): " +
+//                    "\(Date().timeIntervalSinceReferenceDate)"
+//                )
+//                self.isCheckingForDuplicates = false
+//                switch completion {
+//                    case .finished:
+//                         self.didCheckForDuplicates = true
+//                         self.lastCheckedForDuplicatesSnapshotId = self.snapshotId
+//                         if self.duplicatesCount == 0 {
+//                            self.lastDeDuplicatedSnapshotId = self.snapshotId
+//                        }
+//                    case .failure(_):
+//                        break
+//                }
+//                self.objectWillChange.send()
+                guard case .failure(_) = completion else {
+                    return
                 }
-                self.objectWillChange.send()
+                DispatchQueue.main.async {
+                    self.isCheckingForDuplicates = false
+                    self.objectWillChange.send()
+                }
             })
             .map(receivePlaylistItems(_:))
             .eraseToAnyPublisher()
@@ -262,47 +277,74 @@ public class CDPlaylist: NSManagedObject {
         _ playlistItemsArray: [PlaylistItems]
     ) {
         
-        let playlistItems = playlistItemsArray
-            .flatMap(\.items)
-            .map(\.item)
-        
-        self.duplicatePlaylistItems = []
-        var seenPlaylists: Set<PlaylistItem> = []
-        
-        for (index, playlistItem) in playlistItems.enumerated() {
+        DispatchQueue.global(qos: .userInitiated).async {
             
-            if case .track(let track) = playlistItem {
-                if track.isLocal { continue }
+            Loggers.cdPlaylistTimeProfiler.trace(
+                "\(self.name ?? "nil"): \(playlistItemsArray.count): " +
+                "\(Date().timeIntervalSinceReferenceDate)"
+            )
+            
+            let playlistItems = playlistItemsArray
+                .flatMap(\.items)
+                .map(\.item)
+            
+            Loggers.cdPlaylistTimeProfiler.trace(
+                "\(self.name ?? "nil"): \(playlistItems.count): " +
+                "\(Date().timeIntervalSinceReferenceDate)"
+            )
+            
+            DispatchQueue.main.sync {
+                self.duplicatePlaylistItems = []
             }
             
-            for seenPlaylist in seenPlaylists {
-                if playlistItem.isProbablyTheSameAs(seenPlaylist) {
-                    self.duplicatePlaylistItems.append(
-                        (playlistItem, index: index)
-                    )
-                    self.objectWillChange.send()
+            var seenPlaylists: Set<PlaylistItem> = []
+            var duplicatePlaylistItemsLocalCopy = self.duplicatePlaylistItems
+            for (index, playlistItem) in playlistItems.enumerated() {
+                
+                if case .track(let track) = playlistItem {
+                    if track.isLocal { continue }
                 }
+               
+                for seenPlaylist in seenPlaylists {
+                    if playlistItem.isProbablyTheSameAs(seenPlaylist) {
+                        duplicatePlaylistItemsLocalCopy.append(
+                            (playlistItem, index: index)
+                        )
+                    }
+                }
+                seenPlaylists.insert(playlistItem)
+                
             }
-            seenPlaylists.insert(playlistItem)
-            
-        }
-        Loggers.cdPlaylist.trace(
-            "finished checking for duplicates for \(self.name ?? "nil")"
-        )
+            Loggers.cdPlaylistTimeProfiler.trace(
+                "finished checking for duplicates for \(self.name ?? "nil"): " +
+                "\(Date().timeIntervalSinceReferenceDate)"
+            )
         
-        self.retreiveAlbums()
-
+            DispatchQueue.main.async {
+                self.duplicatePlaylistItems = duplicatePlaylistItemsLocalCopy
+                self.didCheckForDuplicates = true
+                self.isCheckingForDuplicates = false
+                self.lastCheckedForDuplicatesSnapshotId = self.snapshotId
+                if self.duplicatesCount == 0 {
+                    self.lastDeDuplicatedSnapshotId = self.snapshotId
+                }
+                self.objectWillChange.send()
+                self.retreiveAlbums()
+            }
+        }
+        
     }
     
     /// Retrieve the albums for all of the duplicate items.
     func retreiveAlbums() {
         
-        Loggers.cdPlaylistAlbums.trace(
-            "retrieving albums for \(self.name ?? "nil")"
+        Loggers.cdPlaylistTimeProfiler.trace(
+            "retrieving albums for \(self.name ?? "nil"): " +
+            "\(Date().timeIntervalSinceReferenceDate)"
         )
         
         var allAlbumURIs: Set<String> = []
-        for playlistItem in duplicatePlaylistItems.map(\.0) {
+        for playlistItem in self.duplicatePlaylistItems.map(\.0) {
             
             let uri: String?
             let albumName: String?
@@ -323,9 +365,8 @@ public class CDPlaylist: NSManagedObject {
             }
             
             if !allAlbumURIs.insert(albumURI).inserted {
-                // the album has already been retrieved in this execution
-                // context, but has not necessarily been saved to the store
-                // yet.
+                // The album has already been retrieved within this method
+                // but has not necessarily been saved to the store yet.
                 continue
             }
             
@@ -333,14 +374,14 @@ public class CDPlaylist: NSManagedObject {
                 if albums.contains(where: { album in
                     album.uri == albumURI
                 }) {
-                    // the album has already been saved to core data
+                    // the album has already been saved to the store
                     continue
                 }
             }
             
-            Loggers.cdPlaylistAlbums.trace(
-                "new album \(albumName ?? "nil") for \(self.name ?? "nil")"
-            )
+//            Loggers.cdPlaylistAlbums.trace(
+//                "new album \(albumName ?? "nil") for \(self.name ?? "nil")"
+//            )
             
             let cdAlbum = CDAlbum(context: Self.managedObjectContext)
             cdAlbum.uri = albumURI
@@ -349,9 +390,10 @@ public class CDPlaylist: NSManagedObject {
             
         }
         
-        Loggers.cdPlaylistAlbums.trace(
+        Loggers.cdPlaylistTimeProfiler.trace(
             "retrieved \(allAlbumURIs.count) albums " +
-            "for \(self.name ?? "nil")"
+            "for \(self.name ?? "nil"): " +
+            "\(Date().timeIntervalSinceReferenceDate)"
         )
         
         if let albums = self.albums as! Set<CDAlbum>? {
@@ -361,9 +403,10 @@ public class CDPlaylist: NSManagedObject {
                 guard let albumURI = album.uri else { continue }
                 if !allAlbumURIs.contains(albumURI) {
                     Self.managedObjectContext.delete(album)
-                    Loggers.cdPlaylistAlbums.trace(
+                    Loggers.cdPlaylistTimeProfiler.trace(
                         "removed album \(album.name ?? "nil") " +
-                        "for \(self.name ?? "nil")"
+                        "for \(self.name ?? "nil"): " +
+                        "\(Date().timeIntervalSinceReferenceDate)"
                     )
                 }
             }
@@ -379,6 +422,11 @@ public class CDPlaylist: NSManagedObject {
                 )
             }
         }
+        
+        Loggers.cdPlaylistTimeProfiler.trace(
+            "finished retrieving albums for \(self.name ?? "nil"): " +
+            "\(Date().timeIntervalSinceReferenceDate)"
+        )
         
     }
     
@@ -403,13 +451,13 @@ public class CDPlaylist: NSManagedObject {
         self.objectWillChange.send()
         
         var duplicateError: Error? = nil
-        let startingTotalDuplicateItems = self.duplicatesCount
         
         DispatchQueue.global(qos: .userInteractive).async {
 
             Loggers.cdPlaylist.trace(
                 "removing \(self.duplicatePlaylistItems.count) " +
-                "duplicate items for  \(self.name ?? "nil")"
+                "duplicate items for  \(self.name ?? "nil"); " +
+                "itemsCount: \(self.itemsCount)"
             )
             
             let duplicateItems = self.duplicatePlaylistItems
@@ -438,6 +486,7 @@ public class CDPlaylist: NSManagedObject {
                             "\(completion)"
                         )
                         if case .failure(let error) = completion {
+                            self.lastDeDuplicatedSnapshotId = nil
                             duplicateError = error
                         }
                         
@@ -448,9 +497,6 @@ public class CDPlaylist: NSManagedObject {
                             Loggers.cdPlaylist.trace(
                                 "finished removing all duplicates for: " +
                                 "\(self.name ?? "nil")"
-                            )
-                            self.itemsCount -= (
-                                startingTotalDuplicateItems - self.duplicatesCount
                             )
                             self.isDeduplicating = false
                             if let error = duplicateError {
@@ -470,6 +516,12 @@ public class CDPlaylist: NSManagedObject {
                         self.duplicatePlaylistItems.removeAll { playlistItem in
                             chunkedItems.contains(where: { $0 == playlistItem })
                         }
+                        self.itemsCount -= Int64(chunkedItems.count)
+                        Loggers.cdPlaylistAlbums.trace(
+                            "\(self.name ?? "nil"): itemsCount: \(self.itemsCount): " +
+                            "chunkedItems.count: \(chunkedItems.count)"
+                        )
+                        
                         guard index == chunkedItemsArray.count - 1 else {
                             return
                         }

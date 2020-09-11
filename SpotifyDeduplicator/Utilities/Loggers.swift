@@ -15,7 +15,11 @@ enum Loggers {
     static let playlistItemCellView =  Logger(label: "playlistItemView", level: .trace)
     
     static let cdPlaylist = Logger(label: "cdPlaylist", level: .trace)
+    static let cdPlaylistTimeProfiler = Logger(
+        label: "cdPlaylistTimeProfiler", level: .trace
+    )
     static let cdPlaylistAlbums = Logger(label: "cdPlaylistAlbums", level: .trace)
+    
     static let loadingImages = Logger(label: "loadingImages", level: .warning)
     static let spotifyObservable = Logger(
         label: "spotifyObservable", level: .trace
