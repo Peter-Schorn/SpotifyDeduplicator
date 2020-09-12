@@ -97,10 +97,7 @@ struct PlaylistsListView: View {
     }
     
     var playlists: FetchedResults<CDPlaylist> {
-        if spotify.isSortingByIndex {
-            return savedPlaylists
-        }
-        return filteredPlaylists
+        spotify.isSortingByIndex ? savedPlaylists : filteredPlaylists
     }
     
     func retrievePlaylistsFromSpotify() {

@@ -379,10 +379,6 @@ public class CDPlaylist: NSManagedObject {
                 }
             }
             
-//            Loggers.cdPlaylistAlbums.trace(
-//                "new album \(albumName ?? "nil") for \(self.name ?? "nil")"
-//            )
-            
             let cdAlbum = CDAlbum(context: Self.managedObjectContext)
             cdAlbum.uri = albumURI
             cdAlbum.name = albumName
@@ -543,9 +539,6 @@ public class CDPlaylist: NSManagedObject {
 
             }
             
-            
-            
-                
         }
 
         Loggers.cdPlaylist.trace("return finishedDeDuplicatingSubject")

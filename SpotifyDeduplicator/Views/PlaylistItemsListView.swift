@@ -20,6 +20,7 @@ struct PlaylistItemsListView: View {
     @State private var alertMessage = ""
     @State private var alertIsPresented = false
     
+    
     var body: some View {
         Group {
             if playlist.duplicatesCount == 0 && !Self.debug {
@@ -87,7 +88,7 @@ struct PlaylistItemsListView: View {
                 message: Text(self.alertMessage)
             )
         }
-        
+    
     }
     
     var header: some View {
@@ -174,6 +175,7 @@ struct PlaylistItemsListView: View {
        }
     
     func deDuplicate() {
+        
         let totalDuplicateItems = playlist.duplicatesCount
         if totalDuplicateItems == 0 { return }
         deDuplicateCancellable = playlist.deDuplicate(spotify)?
@@ -266,3 +268,4 @@ struct PlaylistItemsListView: View {
     }
     
  }
+
