@@ -28,6 +28,17 @@ final class Spotify: ObservableObject {
         string: "peter-schorn-spotify-deduplicator://login-callback"
     )!
     
+    /// A cryptographically-secure random string.
+    static let authorizationState: String = {
+        var bytes = NSMutableData(length: 32)!
+        _ = SecRandomCopyBytes(
+            kSecRandomDefault,
+            bytes.length,
+            UnsafeMutableRawPointer(bytes.mutableBytes)
+        )
+        return bytes.base64EncodedString(options: [])
+    }()
+    
     // MARK: - Published Properties -
     
     @Published var isAuthorized = false
@@ -113,6 +124,7 @@ final class Spotify: ObservableObject {
         let url = api.authorizationManager.makeAuthorizationURL(
             redirectURI: Self.authRedirectURL,
             showDialog: true,
+            state: Self.authorizationState,
             scopes: [
                 .playlistReadPrivate,
                 .playlistModifyPublic,

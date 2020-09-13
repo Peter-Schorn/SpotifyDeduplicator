@@ -65,7 +65,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         spotify.isRetrievingTokens = true
         
         spotify.api.authorizationManager.requestAccessAndRefreshTokens(
-            redirectURIWithQuery: url
+            redirectURIWithQuery: url,
+            state: Spotify.authorizationState
         )
         .receive(on: RunLoop.main)
         .handleEvents(receiveCompletion: { _ in

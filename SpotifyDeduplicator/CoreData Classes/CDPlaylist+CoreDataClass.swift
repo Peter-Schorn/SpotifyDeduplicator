@@ -184,12 +184,6 @@ public class CDPlaylist: NSManagedObject {
         _ spotify: Spotify
     ) -> AnyPublisher<Void, Error>? {
     
-        Loggers.cdPlaylist.trace(
-            """
-            \(self.name ?? "nil"): snapshotId: '\(snapshotId ?? "nil")' \
-            lastDeDuplicatedSnapshotId: '\(lastDeDuplicatedSnapshotId ?? "nil")'
-            """
-        )
         if snapshotId != nil && [
             lastDeDuplicatedSnapshotId, lastCheckedForDuplicatesSnapshotId
         ].contains(snapshotId) {
@@ -378,6 +372,7 @@ public class CDPlaylist: NSManagedObject {
             cdAlbum.uri = albumURI
             cdAlbum.name = albumName
             cdAlbum.imageURL = albumImageURL
+            cdAlbum.playlist = self
             
         }
         
