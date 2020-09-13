@@ -29,6 +29,7 @@ struct PlaylistsListView: View {
     @State private var didRequestPlaylists = false
     @State private var processingPlaylistsCount = 0
     @State private var couldntLoadPlaylists = false
+    @State private var checkForDuplicatesErrorMessage: String? = nil
     
     // MARK: Cancellables
     @State private var didAuthorizeCancellable: AnyCancellable? = nil
@@ -107,6 +108,7 @@ struct PlaylistsListView: View {
         )
         
         self.checkForDuplicatesCancellables.cancellAll()
+        self.checkForDuplicatesErrorMessage = nil
         
         self.processingPlaylistsCount = 0
         for playlist in savedPlaylists {
@@ -232,14 +234,28 @@ struct PlaylistsListView: View {
                 
                 publisher
                     .receive(on: RunLoop.main)
-                    .sink(receiveCompletion: { _ in
+                    .sink(receiveCompletion: { completion in
                         self.processingPlaylistsCount -= 1
                         Loggers.playlistsListView.trace(
                             """
                             finishedCheckingForDuplicates for \(cdPlaylist.name ?? "nil");
-                            count: \(self.processingPlaylistsCount)
+                            count: \(self.processingPlaylistsCount);
+                            completion: \(completion)
                             """
                         )
+                        if case .failure(let error) = completion {
+                            self.checkForDuplicatesErrorMessage =
+                                    error.localizedDescription
+                        }
+                        if self.processingPlaylistsCount <= 0,
+                                let error = self.checkForDuplicatesErrorMessage {
+                            self.spotify.alertTitle =
+                                    "One Or More Playlists Couldn't Be Checked " +
+                                    "For Duplicates"
+                            self.spotify.alertMessage = error
+                            self.checkForDuplicatesErrorMessage = nil
+                            self.spotify.alertIsPresented = true
+                        }
                     })
                     .store(in: &checkForDuplicatesCancellables)
             

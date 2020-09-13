@@ -20,7 +20,6 @@ struct PlaylistItemsListView: View {
     @State private var alertMessage = ""
     @State private var alertIsPresented = false
     
-    
     var body: some View {
         ZStack {
             List {
@@ -37,15 +36,22 @@ struct PlaylistItemsListView: View {
                             if playlist.isCheckingForDuplicates {
                                 Text("Checking For Duplicates")
                                     .lightSecondaryTitle()
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.5)
                             }
                             else {
                                 Text("Retrieving Playlist")
                                     .lightSecondaryTitle()
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.5)
+                                    
                             }
                         }
                         else {
                             Text("No Duplicates")
                                 .lightSecondaryTitle()
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
                         }
                         Spacer()
                     }
@@ -156,21 +162,21 @@ struct PlaylistItemsListView: View {
     }
 
     var refreshButton: some View {
-           Button(action: {
-               self.playlist.reload(self.spotify)
-           }, label:  {
-               Image(systemName: "arrow.clockwise")
-                   .font(.title)
-                   .scaleEffect(0.9)
-           })
-           .disabled(
-               !spotify.isAuthorized ||
-                   playlist.isDeduplicating ||
-                   playlist.isCheckingForDuplicates ||
-                   playlist.isReloading
-           )
-           
-       }
+        Button(action: {
+            self.playlist.reload(self.spotify)
+        }, label:  {
+            Image(systemName: "arrow.clockwise")
+                .font(.title)
+                .scaleEffect(0.9)
+        })
+        .disabled(
+            !spotify.isAuthorized ||
+                playlist.isDeduplicating ||
+                playlist.isCheckingForDuplicates ||
+                playlist.isReloading
+        )
+        
+    }
     
     func deDuplicate() {
         

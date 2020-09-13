@@ -241,6 +241,15 @@ public class CDPlaylist: NSManagedObject {
                 )
             })
             .collect()
+            // intentionally throw an error for debugging purposes
+//            .tryMap { upstream in
+//                if Int.random(in: 1...5) == 1 {
+//                    throw SpotifyLocalError.other(
+//                        "Intentional Error for \(self.name ?? "nil")"
+//                    )
+//                }
+//                return upstream
+//            }
             .handleEvents(receiveCompletion: { completion in
                 if case .failure(_) = completion {
                     DispatchQueue.main.async {
