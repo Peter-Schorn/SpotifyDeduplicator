@@ -11,6 +11,6 @@ Next, add `client_id` and `client_secret` to the environment variables for your 
 
 You are encouraged to use the Spotify desktop application for testing the app. Interestingly, the order that the playlists are returned in by the Spotify web API matches the order that they are displayed in the sidebar of the desktop application. If you drag to reorder them, this will immediately affect the order that the API returns them in and the order that they are displayed in this app.
 
-This app makes extensive use of playlist [snapshot ids][1]. Everytime a playlist changes. its snapshot id changes. This allows for efficiently determining whether a playlist has changed since the last time it was retrieved from the web API.
+This app makes extensive use of playlist [snapshot ids][1]. Everytime a playlist changes, its snapshot id changes. This allows for efficiently determining whether a playlist has changed since the last time it was retrieved from the web API.
 
 [1]: https://developer.spotify.com/documentation/general/guides/working-with-playlists/#version-control-and-snapshots
