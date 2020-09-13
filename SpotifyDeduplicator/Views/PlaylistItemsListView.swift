@@ -22,18 +22,18 @@ struct PlaylistItemsListView: View {
     
     
     var body: some View {
-        Group {
-            if playlist.duplicatesCount == 0 && !Self.debug {
-                VStack {
-                    header
-                    Spacer()
-                    if playlist.isCheckingForDuplicates || playlist.isReloading {
-                        HStack {
+        ZStack {
+            List {
+                header
+                if playlist.duplicatesCount == 0 && !Self.debug {
+                    HStack {
+                        Spacer()
+                        if playlist.isCheckingForDuplicates || playlist.isReloading {
                             ActivityIndicator(
                                 isAnimating: .constant(true),
                                 style: .large
                             )
-                                .scaleEffect(0.8)
+                            .scaleEffect(0.8)
                             if playlist.isCheckingForDuplicates {
                                 Text("Checking For Duplicates")
                                     .lightSecondaryTitle()
@@ -43,41 +43,39 @@ struct PlaylistItemsListView: View {
                                     .lightSecondaryTitle()
                             }
                         }
-                    }
-                    else {
-                        Text("No Duplicates")
-                            .lightSecondaryTitle()
-                    }
-                    Spacer()
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            }
-            else {
-                ZStack {
-                    List {
-                        header
-                        ForEach(playlist.duplicatePlaylistItems, id: \.0) { item in
-                            PlaylistItemCellView(playlistItem: item)
+                        else {
+                            Text("No Duplicates")
+                                .lightSecondaryTitle()
                         }
-                        Rectangle()
+                        Spacer()
+                    }
+                    
+                }
+                else {
+                    ForEach(playlist.duplicatePlaylistItems, id: \.0) { item in
+                        PlaylistItemCellView(playlistItem: item)
+                    }
+                    Rectangle()
                         .fill(Color.clear)
                         .frame(height: 50)
+                }
+                
+            }
+            if playlist.duplicatesCount > 0 {
+                VStack {
+                    Spacer()
+                    Button(action: deDuplicate) {
+                        buttonViewText
+                            .deDuplicateButtonStyle()
                     }
-                    VStack {
-                        Spacer()
-                        Button(action: deDuplicate) {
-                            buttonViewText
-                                .deDuplicateButtonStyle()
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .allowsHitTesting(
-                            spotify.isAuthorized &&
-                                    !playlist.isDeduplicating &&
-                                    !playlist.isCheckingForDuplicates &&
-                                    !playlist.isReloading
-                        )
+                    .buttonStyle(PlainButtonStyle())
+                    .allowsHitTesting(
+                        spotify.isAuthorized &&
+                            !playlist.isDeduplicating &&
+                            !playlist.isCheckingForDuplicates &&
+                            !playlist.isReloading
+                    )
                         .padding(.vertical, 10)
-                    }
                 }
             }
         }
@@ -88,7 +86,7 @@ struct PlaylistItemsListView: View {
                 message: Text(self.alertMessage)
             )
         }
-    
+        
     }
     
     var header: some View {
@@ -113,7 +111,7 @@ struct PlaylistItemsListView: View {
             Divider()
         }
         .padding()
-        .padding(.top, 20)
+        .padding(.top, 5)
     }
     
     var playlistImage: some View {

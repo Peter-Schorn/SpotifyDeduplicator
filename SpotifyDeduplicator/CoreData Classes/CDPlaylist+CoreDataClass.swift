@@ -242,29 +242,11 @@ public class CDPlaylist: NSManagedObject {
             })
             .collect()
             .handleEvents(receiveCompletion: { completion in
-//                Loggers.cdPlaylistTimeProfiler.trace(
-//                    "spotify.api.playlistItems completion for " +
-//                    "\(self.name ?? "nil"): \(completion): " +
-//                    "\(Date().timeIntervalSinceReferenceDate)"
-//                )
-//                self.isCheckingForDuplicates = false
-//                switch completion {
-//                    case .finished:
-//                         self.didCheckForDuplicates = true
-//                         self.lastCheckedForDuplicatesSnapshotId = self.snapshotId
-//                         if self.duplicatesCount == 0 {
-//                            self.lastDeDuplicatedSnapshotId = self.snapshotId
-//                        }
-//                    case .failure(_):
-//                        break
-//                }
-//                self.objectWillChange.send()
-                guard case .failure(_) = completion else {
-                    return
-                }
-                DispatchQueue.main.async {
-                    self.isCheckingForDuplicates = false
-                    self.objectWillChange.send()
+                if case .failure(_) = completion {
+                    DispatchQueue.main.async {
+                        self.isCheckingForDuplicates = false
+                        self.objectWillChange.send()
+                    }
                 }
             })
             .map(receivePlaylistItems(_:))
@@ -277,6 +259,7 @@ public class CDPlaylist: NSManagedObject {
         _ playlistItemsArray: [PlaylistItems]
     ) {
         
+        // this section of code is very performance-sensitive
         DispatchQueue.global(qos: .userInitiated).async {
             
             Loggers.cdPlaylistTimeProfiler.trace(
@@ -294,6 +277,9 @@ public class CDPlaylist: NSManagedObject {
             )
             
             DispatchQueue.main.sync {
+                Loggers.cdPlaylist.trace(
+                    "self.duplicatePlaylistItems = []"
+                )
                 self.duplicatePlaylistItems = []
             }
             

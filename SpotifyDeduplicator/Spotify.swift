@@ -9,19 +9,21 @@ import SpotifyWebAPI
 final class Spotify: ObservableObject {
     
     private static let clientID: String = {
-        if let clientID = ProcessInfo.processInfo
-                .environment["client_id"] {
-            return clientID
-        }
-        fatalError("Could not find 'client_id' in environment variables")
+//        if let clientID = ProcessInfo.processInfo
+//                .environment["client_id"] {
+//            return clientID
+//        }
+//        fatalError("Could not find 'client_id' in environment variables")
+        return ""
     }()
     
     private static let clientSecret: String = {
-        if let clientSecret = ProcessInfo.processInfo
-                .environment["client_secret"] {
-            return clientSecret
-        }
-        fatalError("Could not find 'client_secret' in environment variables")
+//        if let clientSecret = ProcessInfo.processInfo
+//                .environment["client_secret"] {
+//            return clientSecret
+//        }
+//        fatalError("Could not find 'client_secret' in environment variables")
+        return ""
     }()
     
     static let authRedirectURL = URL(
