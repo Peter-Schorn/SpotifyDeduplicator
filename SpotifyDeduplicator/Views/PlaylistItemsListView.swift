@@ -247,7 +247,7 @@ struct PlaylistItemsListView: View {
 //            duplicateTrack
 //        ]
         
-        PlaylistItemsListView.debug = true
+//        PlaylistItemsListView.debug = true
         return playlist
     }
     
